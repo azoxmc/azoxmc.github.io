@@ -227,6 +227,32 @@
             padding: 0 20px;
         }
 
+        /* Page Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .page-title {
+            font-size: 3rem;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+            text-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.6),
+                0 0 40px rgba(0, 212, 255, 0.3);
+        }
+
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: #64748b;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
         /* Paper/Article Styling */
         .article {
             background: rgba(10, 14, 23, 0.8);
@@ -516,6 +542,15 @@
         }
 
         @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+                letter-spacing: 2px;
+            }
+
+            .page-subtitle {
+                font-size: 1rem;
+            }
+
             .article {
                 padding: 30px 25px;
             }
@@ -582,6 +617,13 @@
 
         <main>
             <div class="content-container">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title" id="pageTitle">Loading...</h1>
+                    <p class="page-subtitle" id="pageSubtitle"></p>
+                </div>
+
+                <!-- Articles Container -->
                 <div id="articles-container">
                     <div class="loading">Loading content...</div>
                 </div>
@@ -640,6 +682,25 @@
         });
 
         // Markdown file loading and parsing
+        async function loadPageConfig() {
+            try {
+                const response = await fetch('page-config.json');
+                if (response.ok) {
+                    const config = await response.json();
+                    document.getElementById('pageTitle').textContent = config.title || 'Content';
+                    document.getElementById('pageSubtitle').textContent = config.subtitle || '';
+                    document.title = `Azox Network - ${config.title || 'Content'}`;
+                    return;
+                }
+            } catch (error) {
+                console.log('No page-config.json found, using defaults');
+            }
+            
+            // Default fallback
+            document.getElementById('pageTitle').textContent = 'Content';
+            document.getElementById('pageSubtitle').textContent = '';
+        }
+
         async function loadMarkdownFiles() {
             const container = document.getElementById('articles-container');
             const currentPath = window.location.pathname;
@@ -692,21 +753,22 @@
         }
 
         function getMarkdownFileList() {
-            // IMPORTANT: Replace this with your actual markdown files
-            // You can either:
-            // 1. Manually list files here
-            // 2. Use a JSON index file that lists all markdown files
-            // 3. Use server-side directory listing
-            
-            // Example manual list:
-            return Promise.resolve([
-                '2025-01-28-markdownfile.md',
-                '2025-01-26-mdfile.md',
-                // Add more files as needed
-            ]);
-            
-            // Alternative: Load from a JSON index file
-            // return fetch('files.json').then(r => r.json());
+            // For GitHub Pages: reads from auto-generated .markdown-files.json
+            // This file is created by the pre-commit hook
+            return fetch('.markdown-files.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('File list not found');
+                    }
+                    return response.json();
+                })
+                .catch(error => {
+                    console.error('Error fetching file list:', error);
+                    // If no file list exists, show helpful error
+                    document.getElementById('articles-container').innerHTML = 
+                        '<div class="error">No markdown files found. Make sure .markdown-files.json exists in this directory.</div>';
+                    return [];
+                });
         }
 
         function extractDateFromFilename(filename) {
@@ -757,8 +819,11 @@
             return article;
         }
 
-        // Load markdown files when page loads
-        document.addEventListener('DOMContentLoaded', loadMarkdownFiles);
+        // Load page config and markdown files when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPageConfig();
+            await loadMarkdownFiles();
+        });
     </script>
 </body>
 </html>
